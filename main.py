@@ -29,4 +29,5 @@ def get_matches(file_name: str, team: str = Query(None), date: str = Query(None)
 
         return {"file": file_name, "matches": df.to_dict(orient="records")}
     
-    except Exception a
+    except Exception as e
+        return {"eror": str(e)}
