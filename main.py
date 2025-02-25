@@ -1,49 +1,47 @@
-import os
 import pandas as pd
 from fastapi import FastAPI, Query
 
 app = FastAPI()
 
-# Lấy danh sách file CSV trong thư mục
-csv_files = [f for f in os.listdir() if f.endswith(".csv")]
-
 @app.get("/")
 def read_root():
-    return {"message": "Football Betting API is running with CSV data!", "available_files": csv_files}
+    import os
+    files = [f for f in os.listdir() if f.endswith(".csv")]
+    return {"message": "Football Betting API is running with CSV data!", "available_files": files}
 
 @app.get("/matches/{file_name}")
 def get_matches(
     file_name: str,
-    date: str = Query(None, description="Lọc theo ngày (định dạng dd/mm/yyyy)"),
-    home_team: str = Query(None, description="Lọc theo đội chủ nhà"),
-    away_team: str = Query(None, description="Lọc theo đội khách")
+    team: str = Query(None, description="Filter by team name"),
+    date: str = Query(None, description="Filter by match date (format: DD/MM/YYYY)"),
+    limit: int = Query(None, description="Limit number of matches returned")
 ):
-    """
-    API lấy dữ liệu trận đấu từ file CSV với các bộ lọc theo ngày, đội chủ nhà và đội khách.
-    """
+    try:
+        # Đọc file CSV
+        df = pd.read_csv(file_name)
+        
+        # Định dạng lại cột ngày nếu có
+        if "Date" in df.columns:
+            df["Date"] = pd.to_datetime(df["Date"], format="%d/%m/%Y", errors="coerce")
 
-    # Kiểm tra file có tồn tại không
-    if file_name not in csv_files:
-        return {"error": "File not found!"}
+        # Lọc theo đội bóng (HomeTeam hoặc AwayTeam)
+        if team:
+            df = df[(df["HomeTeam"].str.contains(team, case=False, na=False)) | 
+                    (df["AwayTeam"].str.contains(team, case=False, na=False))]
 
-    # Đọc dữ liệu từ file CSV
-    df = pd.read_csv(file_name)
+        # Lọc theo ngày
+        if date:
+            df = df[df["Date"] == pd.to_datetime(date, format="%d/%m/%Y", errors="coerce")]
 
-    # Chỉ giữ lại các cột quan trọng
-    columns_to_keep = ['Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG', 'B365H', 'B365D', 'B365A']
-    df = df[columns_to_keep]
+        # Giới hạn số lượng trận trả về
+        if limit:
+            df = df.head(limit)
 
-    # Lọc theo ngày
-    if date:
-        df = df[df['Date'] == date]
+        # Chọn một số cột quan trọng
+        data = df[['Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG', 'B365H', 'B365D', 'B365A']].to_dict(orient="records")
 
-    # Lọc theo đội chủ nhà
-    if home_team:
-        df = df[df['HomeTeam'].str.contains(home_team, case=False, na=False)]
+        return {"file": file_name, "matches": data}
+    
+    except Exception as e:
+        return {"error": str(e)}
 
-    # Lọc theo đội khách
-    if away_team:
-        df = df[df['AwayTeam'].str.contains(away_team, case=False, na=False)]
-
-    # Trả về dữ liệu dạng JSON
-    return {"file": file_name, "matches": df.to_dict(orient="records")}
