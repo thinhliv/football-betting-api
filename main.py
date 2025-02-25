@@ -96,5 +96,5 @@ app.get("/api/matches", async (req, res) => {
 
 // Khởi động server
 app.listen(PORT, () => {
-  console.log(“🚀 Server running on port ${PORT}”);
+  console.log("🚀 Server running on port ${PORT}");
 });
