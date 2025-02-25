@@ -1,4 +1,4 @@
-const express = require("express");
+from fastapi import FastAPI
 const axios = require("axios");
 const cors = require("cors");
 require("dotenv").config();
